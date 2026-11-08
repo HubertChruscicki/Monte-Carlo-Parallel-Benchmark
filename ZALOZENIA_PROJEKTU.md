@@ -39,15 +39,19 @@ Statusy: **[ustalone]** / **[propozycja]** / **[otwarte]**
 - `--method classic|stratified`
 - `--samples N`
 - `--layers K` (tylko dla stratified; nazwa zamiast `--strata`)
+- `--batch B` (rozmiar partii, domyślnie 10000)
 - `--threads p`
 - `--seed s`
+- `--timing full|rng` (`rng`: tylko losowanie, do oszacowania kosztu generatora)
+- `--impl omp|seq` (`seq`: referencja sekwencyjna bez OpenMP)
 
 ### Wyjście
-Jedna linia CSV na stdout: `estimate,error,ci_low,ci_high,time_sec`
+Jedna linia CSV na stdout: `estimate,error,ci_low,ci_high,std_error,time_core_sec,time_agg_sec`
 
 - `error` = |estymata − dokładna|
 - `ci` = 95% (1.96·SE)
-- `time_sec` = czas samej pętli próbkowania, mierzony w C (`omp_get_wtime`)
+- `time_core_sec` = pętla próbkowania (losowanie, f(x), sumy partii), mierzona w C (`omp_get_wtime`)
+- `time_agg_sec` = scalanie partii, estymata i wariancja
 
 ### Walidacja **[ustalone]**
 - N ≤ 0, p ≤ 0, K ≤ 0 → błąd.
@@ -57,7 +61,8 @@ Jedna linia CSV na stdout: `estimate,error,ci_low,ci_high,time_sec`
 
 ## 3. Pomiary
 
-- Bez rozgrzewki. **[ustalone]**
+- Rozgrzewka: jedno uruchomienie każdej konfiguracji przed serią, bez zapisu do CSV. **[ustalone]**
+- Referencja sekwencyjna (`--impl seq`, bez OpenMP) do sprawdzania poprawności. **[ustalone]**
 - Każda konfiguracja: co najmniej 5 przebiegów z różnymi ziarnami. **[ustalone]**
 - Siatka wątków: 1, 2, 4, 8, … do 2× liczby wątków logicznych. Przebiegi powyżej liczby wątków logicznych opisujemy w sprawozdaniu jako oversubscription. **[ustalone]**
 - Czas mierzony tylko w C i zbierany przez Python. **[ustalone]**

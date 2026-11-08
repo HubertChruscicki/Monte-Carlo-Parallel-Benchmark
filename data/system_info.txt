@@ -1,0 +1,14 @@
+Data pomiarów: 2026-11-08 18:42:18
+System: Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.43
+Procesor: 11th Gen Intel(R) Core(TM) i7-11800H @ 2.30GHz
+Rdzenie fizyczne: 8
+Wątki logiczne (os.cpu_count): 16
+Kompilator: gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+Flagi kompilacji: -O3 -fopenmp -Wall -Wextra
+Python: 3.14.4
+matplotlib: 3.11.2
+Rozmiar partii: 10000
+Liczba ziaren: 20
+Liczba warstw (stratified): 10
+Siatka N: [10000, 100000, 1000000, 10000000]
+Siatka p: [1, 2, 4, 8, 16, 32]

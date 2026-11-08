@@ -1,0 +1,86 @@
+check,func,method,samples,threads,batch,value_reference,value_tested,abs_diff,passed
+"seq vs omp, p=1, seed=1",sin,classic,10000,1,10000,1.9920254122,1.9920254122,0.0,1
+"seq vs omp, p=2, seed=1",sin,classic,10000,2,10000,1.9920254122,1.9920254122,0.0,1
+"seq vs omp, p=16, seed=1",sin,classic,10000,16,10000,1.9920254122,1.9920254122,0.0,1
+"seq vs omp, partia=1000, seed=1",sin,classic,10000,16,1000,1.9920254122,1.9920254122,0.0,1
+"seq vs omp, partia > N, seed=1",sin,classic,10000,16,1000000000,1.9920254122,1.9920254122,0.0,1
+"seq vs omp, p=1, seed=2",sin,classic,10000,1,10000,1.9951175938,1.9951175938,0.0,1
+"seq vs omp, p=2, seed=2",sin,classic,10000,2,10000,1.9951175938,1.9951175938,0.0,1
+"seq vs omp, p=16, seed=2",sin,classic,10000,16,10000,1.9951175938,1.9951175938,0.0,1
+"seq vs omp, partia=1000, seed=2",sin,classic,10000,16,1000,1.9951175938,1.9951175938,0.0,1
+"seq vs omp, partia > N, seed=2",sin,classic,10000,16,1000000000,1.9951175938,1.9951175938,0.0,1
+"seq vs omp, p=1, seed=1",sin,classic,1000000,1,10000,1.9992294551,1.9992294551,0.0,1
+"seq vs omp, p=2, seed=1",sin,classic,1000000,2,10000,1.9992294551,1.9992294551,0.0,1
+"seq vs omp, p=16, seed=1",sin,classic,1000000,16,10000,1.9992294551,1.9992294551,0.0,1
+"seq vs omp, partia=1000, seed=1",sin,classic,1000000,16,1000,1.9992294551,1.9992294551,0.0,1
+"seq vs omp, partia > N, seed=1",sin,classic,1000000,16,1000000000,1.9992294551,1.9992294551,0.0,1
+"seq vs omp, p=1, seed=2",sin,classic,1000000,1,10000,1.9990563854,1.9990563854,0.0,1
+"seq vs omp, p=2, seed=2",sin,classic,1000000,2,10000,1.9990563854,1.9990563854,0.0,1
+"seq vs omp, p=16, seed=2",sin,classic,1000000,16,10000,1.9990563854,1.9990563854,0.0,1
+"seq vs omp, partia=1000, seed=2",sin,classic,1000000,16,1000,1.9990563854,1.9990563854,0.0,1
+"seq vs omp, partia > N, seed=2",sin,classic,1000000,16,1000000000,1.9990563854,1.9990563854,0.0,1
+"seq vs omp, p=1, seed=1",sin,stratified,10000,1,10000,1.9998102219,1.9998102219,0.0,1
+"seq vs omp, p=2, seed=1",sin,stratified,10000,2,10000,1.9998102219,1.9998102219,0.0,1
+"seq vs omp, p=16, seed=1",sin,stratified,10000,16,10000,1.9998102219,1.9998102219,0.0,1
+"seq vs omp, partia=1000, seed=1",sin,stratified,10000,16,1000,1.9998102219,1.9998102219,0.0,1
+"seq vs omp, partia > N, seed=1",sin,stratified,10000,16,1000000000,1.9998102219,1.9998102219,0.0,1
+"seq vs omp, p=1, seed=2",sin,stratified,10000,1,10000,2.0005955836,2.0005955836,0.0,1
+"seq vs omp, p=2, seed=2",sin,stratified,10000,2,10000,2.0005955836,2.0005955836,0.0,1
+"seq vs omp, p=16, seed=2",sin,stratified,10000,16,10000,2.0005955836,2.0005955836,0.0,1
+"seq vs omp, partia=1000, seed=2",sin,stratified,10000,16,1000,2.0005955836,2.0005955836,0.0,1
+"seq vs omp, partia > N, seed=2",sin,stratified,10000,16,1000000000,2.0005955836,2.0005955836,0.0,1
+"seq vs omp, p=1, seed=1",sin,stratified,1000000,1,10000,1.9999805721,1.9999805721,0.0,1
+"seq vs omp, p=2, seed=1",sin,stratified,1000000,2,10000,1.9999805721,1.9999805721,0.0,1
+"seq vs omp, p=16, seed=1",sin,stratified,1000000,16,10000,1.9999805721,1.9999805721,0.0,1
+"seq vs omp, partia=1000, seed=1",sin,stratified,1000000,16,1000,1.9999805721,1.9999805721,0.0,1
+"seq vs omp, partia > N, seed=1",sin,stratified,1000000,16,1000000000,1.9999805721,1.9999805721,0.0,1
+"seq vs omp, p=1, seed=2",sin,stratified,1000000,1,10000,1.9998951336,1.9998951336,0.0,1
+"seq vs omp, p=2, seed=2",sin,stratified,1000000,2,10000,1.9998951336,1.9998951336,0.0,1
+"seq vs omp, p=16, seed=2",sin,stratified,1000000,16,10000,1.9998951336,1.9998951336,0.0,1
+"seq vs omp, partia=1000, seed=2",sin,stratified,1000000,16,1000,1.9998951336,1.9998951336,0.0,1
+"seq vs omp, partia > N, seed=2",sin,stratified,1000000,16,1000000000,1.9998951336,1.9998951336,0.0,1
+"seq vs omp, p=1, seed=1",poly,classic,10000,1,10000,10.0152464083,10.0152464083,0.0,1
+"seq vs omp, p=2, seed=1",poly,classic,10000,2,10000,10.0152464083,10.0152464083,0.0,1
+"seq vs omp, p=16, seed=1",poly,classic,10000,16,10000,10.0152464083,10.0152464083,0.0,1
+"seq vs omp, partia=1000, seed=1",poly,classic,10000,16,1000,10.0152464083,10.0152464083,0.0,1
+"seq vs omp, partia > N, seed=1",poly,classic,10000,16,1000000000,10.0152464083,10.0152464083,0.0,1
+"seq vs omp, p=1, seed=2",poly,classic,10000,1,10000,10.0099385861,10.0099385861,0.0,1
+"seq vs omp, p=2, seed=2",poly,classic,10000,2,10000,10.0099385861,10.0099385861,0.0,1
+"seq vs omp, p=16, seed=2",poly,classic,10000,16,10000,10.0099385861,10.0099385861,0.0,1
+"seq vs omp, partia=1000, seed=2",poly,classic,10000,16,1000,10.0099385861,10.0099385861,0.0,1
+"seq vs omp, partia > N, seed=2",poly,classic,10000,16,1000000000,10.0099385861,10.0099385861,0.0,1
+"seq vs omp, p=1, seed=1",poly,classic,1000000,1,10000,10.0013656715,10.0013656715,0.0,1
+"seq vs omp, p=2, seed=1",poly,classic,1000000,2,10000,10.0013656715,10.0013656715,0.0,1
+"seq vs omp, p=16, seed=1",poly,classic,1000000,16,10000,10.0013656715,10.0013656715,0.0,1
+"seq vs omp, partia=1000, seed=1",poly,classic,1000000,16,1000,10.0013656715,10.0013656715,0.0,1
+"seq vs omp, partia > N, seed=1",poly,classic,1000000,16,1000000000,10.0013656715,10.0013656715,0.0,1
+"seq vs omp, p=1, seed=2",poly,classic,1000000,1,10000,10.0016843154,10.0016843154,0.0,1
+"seq vs omp, p=2, seed=2",poly,classic,1000000,2,10000,10.0016843154,10.0016843154,0.0,1
+"seq vs omp, p=16, seed=2",poly,classic,1000000,16,10000,10.0016843154,10.0016843154,0.0,1
+"seq vs omp, partia=1000, seed=2",poly,classic,1000000,16,1000,10.0016843154,10.0016843154,0.0,1
+"seq vs omp, partia > N, seed=2",poly,classic,1000000,16,1000000000,10.0016843154,10.0016843154,0.0,1
+"seq vs omp, p=1, seed=1",poly,stratified,10000,1,10000,10.0010725468,10.0010725468,0.0,1
+"seq vs omp, p=2, seed=1",poly,stratified,10000,2,10000,10.0010725468,10.0010725468,0.0,1
+"seq vs omp, p=16, seed=1",poly,stratified,10000,16,10000,10.0010725468,10.0010725468,0.0,1
+"seq vs omp, partia=1000, seed=1",poly,stratified,10000,16,1000,10.0010725468,10.0010725468,0.0,1
+"seq vs omp, partia > N, seed=1",poly,stratified,10000,16,1000000000,10.0010725468,10.0010725468,0.0,1
+"seq vs omp, p=1, seed=2",poly,stratified,10000,1,10000,9.9986394236,9.9986394236,0.0,1
+"seq vs omp, p=2, seed=2",poly,stratified,10000,2,10000,9.9986394236,9.9986394236,0.0,1
+"seq vs omp, p=16, seed=2",poly,stratified,10000,16,10000,9.9986394236,9.9986394236,0.0,1
+"seq vs omp, partia=1000, seed=2",poly,stratified,10000,16,1000,9.9986394236,9.9986394236,0.0,1
+"seq vs omp, partia > N, seed=2",poly,stratified,10000,16,1000000000,9.9986394236,9.9986394236,0.0,1
+"seq vs omp, p=1, seed=1",poly,stratified,1000000,1,10000,10.0000767142,10.0000767142,0.0,1
+"seq vs omp, p=2, seed=1",poly,stratified,1000000,2,10000,10.0000767142,10.0000767142,0.0,1
+"seq vs omp, p=16, seed=1",poly,stratified,1000000,16,10000,10.0000767142,10.0000767142,0.0,1
+"seq vs omp, partia=1000, seed=1",poly,stratified,1000000,16,1000,10.0000767142,10.0000767142,0.0,1
+"seq vs omp, partia > N, seed=1",poly,stratified,1000000,16,1000000000,10.0000767142,10.0000767142,0.0,1
+"seq vs omp, p=1, seed=2",poly,stratified,1000000,1,10000,10.0002134959,10.0002134959,0.0,1
+"seq vs omp, p=2, seed=2",poly,stratified,1000000,2,10000,10.0002134959,10.0002134959,0.0,1
+"seq vs omp, p=16, seed=2",poly,stratified,1000000,16,10000,10.0002134959,10.0002134959,0.0,1
+"seq vs omp, partia=1000, seed=2",poly,stratified,1000000,16,1000,10.0002134959,10.0002134959,0.0,1
+"seq vs omp, partia > N, seed=2",poly,stratified,1000000,16,1000000000,10.0002134959,10.0002134959,0.0,1
+przypadek brzegowy: N = 2 (klasyczne),,,,,,,,,1
+przypadek brzegowy: N niepodzielne przez K,,,,,,,,,1
+przypadek brzegowy: partia = 0,,,,,,,,,1
+przypadek brzegowy: nieznana funkcja,,,,,,,,,1
+przypadek brzegowy: tryb rng z --impl seq,,,,,,,,,1

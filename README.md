@@ -31,13 +31,14 @@ make
 ./src/mc_app --func poly --method stratified --samples 1000000 --layers 10 --threads 4 --seed 1
 ```
 
-Wynik (jedna linia CSV): `estimate,error,ci_low,ci_high,time_sec`
+Wynik (jedna linia CSV): `estimate,error,ci_low,ci_high,std_error,time_core_sec,time_agg_sec`
 
 ## Wyniki
 
 - `data/raw_results.csv`: każdy przebieg osobno
 - `data/summary.csv`: mediana i rozrzut czasu, mediana błędu, pokrycie przedziałów ufności
-- `plots/`: speedup i efektywność, błąd vs N, błąd vs czas
+- `data/cost_breakdown.csv`, `data/time_to_eps.csv`, `data/reference_check.csv`, `data/system_info.txt`
+- `plots/`: wykresy oraz `plots/README.md` z opisem, jak je czytać
 
 ## Uwagi
 

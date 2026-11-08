@@ -1,98 +1,110 @@
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <omp.h>
 #include "monte_carlo.h"
 #include "rng.h"
 
-MonteCarloResult monte_carlo_classic(const TestFunction *test_function, long long n,
-                                     uint64_t seed, int thread_count) {
-    double interval_length = test_function->interval_end - test_function->interval_start;
-    double sum = 0.0;
-    double sum_of_squares = 0.0;
-
-    omp_set_num_threads(thread_count);
-    double t0 = omp_get_wtime();
-    // Każdy wątek liczy swój fragment pętli i ma swoje własne zmienne sum i sum_of_squares, 
-    // Na końcu pętli automatycznie dodaje (redukuje) wyniki ze wszystkich wątków
-    #pragma omp parallel for reduction(+:sum,sum_of_squares) schedule(static)
-    for (long long i = 0; i < n; i++) {
-        // Losowanie punktu x w przedziale [a, b]
-        double x = test_function->interval_start + rng_uniform(seed, (uint64_t)i) * interval_length;
-        double value = test_function->function(x); // f(x)
-        //suma wartości funkcji w wylosowanych punktach
-        sum += value;
-        sum_of_squares += value * value; // kwadraty do liczenia wariancji
+// Losowanie próbki o indeksie j w warstwie zaczynającej się od layer_start, szerokości width.
+// Tryb RNG_ONLY zwraca samo u (bez f(x)), żeby zmierzyć koszt generatora.
+static inline double sample_value(const TestFunction *tf, double layer_start, double width,
+                                  uint64_t seed, long long j, TimingMode timing) {
+    double u = rng_uniform(seed, (uint64_t)j);
+    if (timing == TIMING_RNG_ONLY) {
+        return u;
     }
-    double t1 = omp_get_wtime();
-
-    double mean = sum / n;
-    double variance = (sum_of_squares - sum * sum / n) / (n - 1);
-
-    MonteCarloResult result;
-    result.estimate = interval_length * mean;
-    result.standard_error = interval_length * sqrt(variance / n);
-    result.time_seconds = t1 - t0;
-    return result;
+    return tf->function(layer_start + u * width);
 }
 
-MonteCarloResult monte_carlo_stratified(const TestFunction *test_function, long long n,
-                                        int layer_count, uint64_t seed, int thread_count) {
+// Wspólny silnik dla wszystkich wariantów. Klasyczne Monte Carlo to przypadek layer_count = 1.
+// Próbki każdej warstwy dzielimy na partie po `batch` próbek. Dla każdej partii liczymy sumę
+// i sumę kwadratów wartości, a dopiero potem scalamy partie w estymatę i wariancję.
+// Równoległość OpenMP: partie rozdzielane między wątki (schedule static), każda partia liczona
+// w całości przez jeden wątek. Liczba partii ogranicza maksymalne równoległe wykorzystanie.
+static MonteCarloResult run_batched(const TestFunction *tf, long long n, int layer_count,
+                                    long long batch, uint64_t seed, int thread_count,
+                                    TimingMode timing, int use_openmp) {
     long long samples_per_layer = n / layer_count;
-    double layer_width = (test_function->interval_end - test_function->interval_start) / layer_count;
+    double width = (tf->interval_end - tf->interval_start) / layer_count;
+    long long batches_per_layer = (samples_per_layer + batch - 1) / batch;
+    long long total_batches = batches_per_layer * layer_count;
 
-    // Sumy wartości funkcji i ich kwadratów dla każdej warstwy (scalane z wątków)
-    double *layer_sums = calloc(layer_count, sizeof(double));
-    double *layer_sums_of_squares = calloc(layer_count, sizeof(double));
+    double *batch_sum = malloc((size_t)total_batches * sizeof(double));
+    double *batch_sum_sq = malloc((size_t)total_batches * sizeof(double));
+    if (batch_sum == NULL || batch_sum_sq == NULL) {
+        fprintf(stderr, "ERROR: brak pamięci na statystyki partii\n");
+        exit(1);
+    }
 
-    omp_set_num_threads(thread_count);
+    // Pętla próbkowania: każdy wątek dostaje część partii i liczy dla nich sumy lokalnie.
+    // Jedna sekcja równoległa dla całej pętli, bez bariery po każdej partii.
     double t0 = omp_get_wtime();
-    #pragma omp parallel
-    {
-        // Lokalne sumy wątku, żeby nie blokować na każdej próbce
-        double *local_sums = calloc(layer_count, sizeof(double));
-        double *local_sums_of_squares = calloc(layer_count, sizeof(double));
-
-        #pragma omp for schedule(static)
-        for (long long j = 0; j < n; j++) {
-            int layer = (int)(j / samples_per_layer);
-            double x = test_function->interval_start
-                     + (layer + rng_uniform(seed, (uint64_t)j)) * layer_width;
-            double value = test_function->function(x);
-            local_sums[layer] += value;
-            local_sums_of_squares[layer] += value * value;
+    #pragma omp parallel for if(use_openmp) num_threads(thread_count) schedule(static)
+    for (long long b = 0; b < total_batches; b++) {
+        long long layer = b / batches_per_layer;
+        long long chunk = b % batches_per_layer;
+        long long layer_end = (layer + 1) * samples_per_layer;
+        long long first = layer * samples_per_layer + chunk * batch;
+        long long last = first + batch;
+        if (last > layer_end) {
+            last = layer_end;
         }
-
-        #pragma omp critical
-        {
-            for (int layer = 0; layer < layer_count; layer++) {
-                layer_sums[layer] += local_sums[layer];
-                layer_sums_of_squares[layer] += local_sums_of_squares[layer];
-            }
+        double layer_start = tf->interval_start + (double)layer * width;
+        double part_sum = 0.0;
+        double part_sum_sq = 0.0;
+        for (long long j = first; j < last; j++) {
+            double value = sample_value(tf, layer_start, width, seed, j, timing);
+            part_sum += value;
+            part_sum_sq += value * value;
         }
-
-        free(local_sums);
-        free(local_sums_of_squares);
+        batch_sum[b] = part_sum;
+        batch_sum_sq[b] = part_sum_sq;
     }
     double t1 = omp_get_wtime();
 
-    // Estymata = sum_s w * mean_s, wariancja = sum_s w^2 * var_s / n_s
+    // Scalanie partii: estymata = Σ w·μ_s, wariancja = Σ w²·s_s²/n_s
     double estimate = 0.0;
     double variance = 0.0;
-    for (int layer = 0; layer < layer_count; layer++) {
-        double layer_mean = layer_sums[layer] / samples_per_layer;
-        double layer_variance = (layer_sums_of_squares[layer]
-                                 - layer_sums[layer] * layer_sums[layer] / samples_per_layer)
+    for (long long layer = 0; layer < layer_count; layer++) {
+        double layer_sum = 0.0;
+        double layer_sum_sq = 0.0;
+        for (long long chunk = 0; chunk < batches_per_layer; chunk++) {
+            long long b = layer * batches_per_layer + chunk;
+            layer_sum += batch_sum[b];
+            layer_sum_sq += batch_sum_sq[b];
+        }
+        double layer_mean = layer_sum / samples_per_layer;
+        double layer_variance = (layer_sum_sq - layer_sum * layer_sum / samples_per_layer)
                                 / (samples_per_layer - 1);
-        estimate += layer_width * layer_mean;
-        variance += layer_width * layer_width * layer_variance / samples_per_layer;
+        estimate += width * layer_mean;
+        variance += width * width * layer_variance / samples_per_layer;
     }
+    double t2 = omp_get_wtime();
 
-    free(layer_sums);
-    free(layer_sums_of_squares);
+    free(batch_sum);
+    free(batch_sum_sq);
 
     MonteCarloResult result;
     result.estimate = estimate;
     result.standard_error = sqrt(variance);
-    result.time_seconds = t1 - t0;
+    result.time_core_seconds = t1 - t0;
+    result.time_agg_seconds = t2 - t1;
     return result;
+}
+
+MonteCarloResult monte_carlo_classic(const TestFunction *test_function, long long n,
+                                     long long batch, uint64_t seed, int thread_count,
+                                     TimingMode timing) {
+    return run_batched(test_function, n, 1, batch, seed, thread_count, timing, 1);
+}
+
+MonteCarloResult monte_carlo_stratified(const TestFunction *test_function, long long n,
+                                        int layer_count, long long batch, uint64_t seed,
+                                        int thread_count, TimingMode timing) {
+    return run_batched(test_function, n, layer_count, batch, seed, thread_count, timing, 1);
+}
+
+MonteCarloResult monte_carlo_sequential(const TestFunction *test_function, long long n,
+                                        int layer_count, long long batch, uint64_t seed) {
+    return run_batched(test_function, n, layer_count, batch, seed, 1, TIMING_FULL, 0);
 }
