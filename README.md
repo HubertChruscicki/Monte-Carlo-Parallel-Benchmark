@@ -7,11 +7,32 @@ Założenia i zakres: [ZALOZENIA_PROJEKTU.md](ZALOZENIA_PROJEKTU.md).
 W WSL, z katalogu projektu uruchom jedno polecenie:
 
 ```bash
-cd /mnt/c/Users/huber/Desktop/STUDIA/SEM9/PRIR/Monte-Carlo-Parallel-Benchmark
+cd /mnt/c/Users/Komputer/Desktop/sem9/prir/Monte-Carlo-Parallel-Benchmark
 python3 scripts/run_experiments.py
 ```
 
 Skrypt sam kompiluje program (`make`), wykonuje wszystkie przebiegi, zapisuje wyniki do `data/` i wykresy do `plots/`. Nie trzeba nic kompilować ręcznie.
+
+## Opcje skryptu (siatka wątków, N, ziarna)
+
+Bez opcji skrypt robi pełną domyślną konfigurację. Siatkę można zmienić z wiersza poleceń, bez edycji kodu:
+
+```bash
+python3 scripts/run_experiments.py --help
+
+# szybka próba, wyniki do osobnych katalogów (nie nadpisują data/ i plots/)
+python3 scripts/run_experiments.py --threads 1,4,8 --seeds 5 --samples 10000,1000000 \
+    --data-dir data_test --plots-dir plots_test
+
+# pełny pomiar z własną siatką wątków
+python3 scripts/run_experiments.py --threads 1,2,4,6,8,12,16,24,32 --omp-wait-policy passive
+```
+
+- `--threads`: siatka p, np. `1,2,4,8,12` (musi zawierać `1`). Domyślnie: potęgi dwójki do 2× liczby wątków logicznych plus sama liczba wątków logicznych komputera.
+- `--samples`: siatka N (podzielne przez 10). `--seeds`: liczba ziaren (do raportu co najmniej 5).
+- `--data-dir`, `--plots-dir`: dokąd zapisać wyniki. Dobrze dać każdemu komputerowi osobny katalog (np. `data_ryzen`), bo pomiary z różnych maszyn nie są porównywalne.
+- `--omp-wait-policy passive`: ustawia `OMP_WAIT_POLICY` dla uruchomień. Przy p równym liczbie wątków logicznych domyślne oczekiwanie aktywne potrafi wydłużyć czas kilkukrotnie (zapaść S(p)); `passive` to usuwa. Zapisywane w `system_info.txt`.
+- Wykresy przyspieszenia, efektywności i podziału kosztu używają największego N z siatki i p nieprzekraczających liczby wątków logicznych; większe p to oversubscription.
 
 ## Wymagania (jednorazowo)
 

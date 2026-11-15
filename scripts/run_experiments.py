@@ -2,6 +2,7 @@
 
 Uruchamiać z katalogu projektu w WSL:  python3 scripts/run_experiments.py
 """
+import argparse
 import csv
 import os
 import platform
@@ -22,32 +23,137 @@ EXACT_VALUES = {"sin": 2.0, "poly": 10.0}
 FUNCTION_LABELS = {"sin": "sin(x) na [0, π]", "poly": "3(x−1)²+4 na [0, 2]"}
 METHOD_NAMES = ["classic", "stratified"]
 METHOD_LABELS = {"classic": "klasyczne", "stratified": "warstwowe"}
-SAMPLE_COUNTS = [10_000, 100_000, 1_000_000, 10_000_000]
-LARGEST_N = max(SAMPLE_COUNTS)
 LAYER_COUNT = 10
 BATCH_SIZE = 10_000
-SEEDS = list(range(1, 21))
 EPS_LEVELS = [1e-2, 3e-3, 1e-3, 3e-4, 1e-4]
 TIME_TO_EPS_THREADS = 1
 TOLERANCE = 1e-9
-
 CPU_COUNT = os.cpu_count() or 1
-THREAD_COUNTS = []
-power_of_two = 1
-while power_of_two <= 2 * CPU_COUNT:
-    THREAD_COUNTS.append(power_of_two)
-    power_of_two *= 2
-SPEEDUP_THREADS = [count for count in THREAD_COUNTS if count <= CPU_COUNT]
-COST_THREADS = [1, CPU_COUNT]
+
+DEFAULT_SAMPLE_COUNTS = [10_000, 100_000, 1_000_000, 10_000_000]
+DEFAULT_SEED_COUNT = 20
+
+
+def default_thread_counts():
+    # Potęgi dwójki do 2 * liczba wątków logicznych, plus sama liczba wątków logicznych
+    # (nawet gdy nie jest potęgą dwójki, np. 24).
+    counts = []
+    power_of_two = 1
+    while power_of_two <= 2 * CPU_COUNT:
+        counts.append(power_of_two)
+        power_of_two *= 2
+    if CPU_COUNT not in counts:
+        counts.append(CPU_COUNT)
+    return sorted(counts)
+
+
+# Wartości poniżej ustawia configure() na podstawie opcji wiersza poleceń (patrz --help).
+SAMPLE_COUNTS = DEFAULT_SAMPLE_COUNTS
+LARGEST_N = max(SAMPLE_COUNTS)
+LARGEST_N_LABEL = "10⁷"
+SEEDS = list(range(1, DEFAULT_SEED_COUNT + 1))
+THREAD_COUNTS = default_thread_counts()
+SPEEDUP_THREADS = []
+COST_THREADS = []
+RUN_ENV = dict(os.environ)
+OMP_WAIT_POLICY = None
 
 DATA_DIR = "data"
 PLOTS_DIR = "plots"
-RAW_RESULTS_CSV = "data/raw_results.csv"
-SUMMARY_CSV = "data/summary.csv"
-COST_CSV = "data/cost_breakdown.csv"
-TIME_TO_EPS_CSV = "data/time_to_eps.csv"
-REFERENCE_CSV = "data/reference_check.csv"
-SYSTEM_INFO_TXT = "data/system_info.txt"
+RAW_RESULTS_CSV = ""
+SUMMARY_CSV = ""
+COST_CSV = ""
+TIME_TO_EPS_CSV = ""
+REFERENCE_CSV = ""
+SYSTEM_INFO_TXT = ""
+
+
+def parse_int_list(text, name):
+    try:
+        values = sorted({int(item.replace("_", "")) for item in text.split(",") if item.strip()})
+    except ValueError:
+        raise SystemExit(f"Błąd: --{name} oczekuje listy liczb całkowitych oddzielonych "
+                         f"przecinkami, np. 1,2,4,8 (podano: {text!r})")
+    if not values or values[0] < 1:
+        raise SystemExit(f"Błąd: --{name} musi zawierać liczby >= 1")
+    return values
+
+
+def power_label(n):
+    # 10000000 -> "10⁷", inne wartości -> "12 345"
+    exponent = len(str(n)) - 1
+    if n == 10 ** exponent and exponent > 1:
+        return "10" + "".join("⁰¹²³⁴⁵⁶⁷⁸⁹"[int(digit)] for digit in str(exponent))
+    return format(n, ",").replace(",", " ")
+
+
+def configure(args):
+    global SAMPLE_COUNTS, LARGEST_N, LARGEST_N_LABEL, SEEDS, THREAD_COUNTS, SPEEDUP_THREADS
+    global COST_THREADS, DATA_DIR, PLOTS_DIR, RAW_RESULTS_CSV, SUMMARY_CSV, COST_CSV
+    global TIME_TO_EPS_CSV, REFERENCE_CSV, SYSTEM_INFO_TXT, RUN_ENV, OMP_WAIT_POLICY
+
+    if args.threads:
+        THREAD_COUNTS = parse_int_list(args.threads, "threads")
+    if 1 not in THREAD_COUNTS:
+        raise SystemExit("Błąd: siatka wątków musi zawierać 1 (punkt odniesienia dla S(p))")
+    SPEEDUP_THREADS = [count for count in THREAD_COUNTS if count <= CPU_COUNT]
+    # Podział kosztu: p = 1 oraz największe p nieprzekraczające liczby wątków logicznych.
+    COST_THREADS = sorted({1, max(SPEEDUP_THREADS)})
+
+    if args.samples:
+        SAMPLE_COUNTS = parse_int_list(args.samples, "samples")
+    bad = [n for n in SAMPLE_COUNTS if n % LAYER_COUNT != 0 or n // LAYER_COUNT < 2]
+    if bad:
+        raise SystemExit(f"Błąd: N musi być podzielne przez {LAYER_COUNT} (liczba warstw) i "
+                         f">= {2 * LAYER_COUNT}; zły N: {bad}")
+    LARGEST_N = max(SAMPLE_COUNTS)
+    LARGEST_N_LABEL = power_label(LARGEST_N)
+
+    if args.seeds < 2:
+        raise SystemExit("Błąd: --seeds musi być >= 2 (odchylenie standardowe)")
+    if args.seeds < 5:
+        print("Uwaga: wymagane jest co najmniej 5 ziaren do raportu; mniej tylko do szybkich prób.")
+    SEEDS = list(range(1, args.seeds + 1))
+
+    DATA_DIR = args.data_dir
+    PLOTS_DIR = args.plots_dir
+    RAW_RESULTS_CSV = os.path.join(DATA_DIR, "raw_results.csv")
+    SUMMARY_CSV = os.path.join(DATA_DIR, "summary.csv")
+    COST_CSV = os.path.join(DATA_DIR, "cost_breakdown.csv")
+    TIME_TO_EPS_CSV = os.path.join(DATA_DIR, "time_to_eps.csv")
+    REFERENCE_CSV = os.path.join(DATA_DIR, "reference_check.csv")
+    SYSTEM_INFO_TXT = os.path.join(DATA_DIR, "system_info.txt")
+
+    OMP_WAIT_POLICY = args.omp_wait_policy
+    RUN_ENV = dict(os.environ)
+    if OMP_WAIT_POLICY:
+        RUN_ENV["OMP_WAIT_POLICY"] = OMP_WAIT_POLICY
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        description="Eksperymenty Monte Carlo (O06): pomiary, statystyki i wykresy. "
+                    "Bez opcji uruchamia pełną, domyślną konfigurację.",
+        epilog=f"Ten komputer: {CPU_COUNT} wątków logicznych. Domyślna siatka wątków: "
+               f"{','.join(map(str, default_thread_counts()))}. Przykład szybkiej próby: "
+               f"--threads 1,4,8 --seeds 5 --samples 10000,1000000 "
+               f"--data-dir data_test --plots-dir plots_test")
+    parser.add_argument("--threads", help="siatka liczby wątków OpenMP, np. 1,2,4,8,12; "
+                        "musi zawierać 1 (domyślnie: potęgi dwójki do 2x wątków logicznych "
+                        "plus liczba wątków logicznych)")
+    parser.add_argument("--samples", help="siatka N, np. 10000,1000000 (domyślnie: "
+                        "10000,100000,1000000,10000000); N podzielne przez 10")
+    parser.add_argument("--seeds", type=int, default=DEFAULT_SEED_COUNT,
+                        help="liczba ziaren na konfigurację (domyślnie 20)")
+    parser.add_argument("--data-dir", default="data",
+                        help="katalog na CSV i system_info.txt (domyślnie data)")
+    parser.add_argument("--plots-dir", default="plots",
+                        help="katalog na wykresy i README (domyślnie plots)")
+    parser.add_argument("--omp-wait-policy", choices=["active", "passive"], default=None,
+                        help="ustawia OMP_WAIT_POLICY dla uruchomień mc_app; 'passive' usuwa "
+                             "zapaść czasu przy p = liczbie wątków logicznych "
+                             "(domyślnie: ustawienie systemu)")
+    return parser.parse_args()
 
 RAW_FIELDS = ["func", "method", "timing", "samples", "layers", "batch", "threads", "seed",
               "oversubscribed", "estimate", "error", "ci_low", "ci_high", "std_error",
@@ -98,7 +204,7 @@ def parse_output(stdout):
 def run_one(func, method, samples, threads, seed, timing="full", batch=BATCH_SIZE, impl="omp"):
     command = build_arguments(func, method, samples, threads, seed, timing, batch, impl)
     start = time.perf_counter()
-    completed = subprocess.run(command, capture_output=True, text=True)
+    completed = subprocess.run(command, capture_output=True, text=True, env=RUN_ENV)
     wall_time = time.perf_counter() - start
     if completed.returncode != 0:
         raise RuntimeError(f"Błąd dla {command}: {completed.stderr.strip()}")
@@ -151,7 +257,8 @@ def check_reference():
                                    "--impl", "seq"], 1),
     ]
     for name, arguments, expected_code in edge_cases:
-        completed = subprocess.run([EXECUTABLE_PATH] + arguments, capture_output=True, text=True)
+        completed = subprocess.run([EXECUTABLE_PATH] + arguments, capture_output=True, text=True,
+                                   env=RUN_ENV)
         rows.append({"check": f"przypadek brzegowy: {name}", "func": "", "method": "",
                      "samples": "", "threads": "", "batch": "", "value_reference": "",
                      "value_tested": "", "abs_diff": "",
@@ -296,6 +403,7 @@ def write_system_info():
         f"Liczba warstw (stratified): {LAYER_COUNT}",
         f"Siatka N: {SAMPLE_COUNTS}",
         f"Siatka p: {THREAD_COUNTS}",
+        f"OMP_WAIT_POLICY: {OMP_WAIT_POLICY or 'domyślne (nie ustawiono)'}",
     ]
     with open(SYSTEM_INFO_TXT, "w", encoding="utf-8") as info_file:
         info_file.write("\n".join(lines) + "\n")
@@ -331,7 +439,7 @@ def plot_speedup(index, func):
     axis.set_xticks(SPEEDUP_THREADS)
     axis.set_xlabel("liczba wątków p")
     axis.set_ylabel("przyspieszenie")
-    axis.set_title(f"Przyspieszenie: {FUNCTION_LABELS[func]}, N = 10⁷")
+    axis.set_title(f"Przyspieszenie: {FUNCTION_LABELS[func]}, N = {LARGEST_N_LABEL}")
     axis.grid(True, alpha=0.3)
     axis.legend(loc="upper left")
     save_figure(figure, f"speedup_{func}.png")
@@ -355,7 +463,7 @@ def plot_efficiency(index, func):
     axis.set_ylim(0, 1.1)
     axis.set_xlabel("liczba wątków p")
     axis.set_ylabel("efektywność")
-    axis.set_title(f"Efektywność: {FUNCTION_LABELS[func]}, N = 10⁷")
+    axis.set_title(f"Efektywność: {FUNCTION_LABELS[func]}, N = {LARGEST_N_LABEL}")
     axis.grid(True, alpha=0.3)
     axis.legend(loc="upper right")
     save_figure(figure, f"efficiency_{func}.png")
@@ -438,7 +546,7 @@ def plot_cost_breakdown(cost_rows, func):
     axis.set_xticklabels(labels)
     axis.set_ylim(0, 100)
     axis.set_ylabel("udział w całkowitym czasie [%]")
-    axis.set_title(f"Podział kosztu: {FUNCTION_LABELS[func]}, N = 10⁷")
+    axis.set_title(f"Podział kosztu: {FUNCTION_LABELS[func]}, N = {LARGEST_N_LABEL}")
     axis.grid(True, axis="y", alpha=0.3)
     axis.legend(loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=3)
     save_figure(figure, f"cost_breakdown_{func}.png")
@@ -460,7 +568,7 @@ Konfiguracja sprzętu: `data/system_info.txt`.
 - Metody: klasyczna (jedna warstwa) i warstwowa (K = {LAYER_COUNT} warstw).
 - Liczba próbek N: {sample_list}. Te same N dla obu metod.
 - Liczba wątków p: {thread_list}. Wątków logicznych jest {CPU_COUNT}; wartości powyżej są oversubscription i nie są na wykresach przyspieszenia.
-- Rozmiar partii: {batch_text} próbek. Partie są rozdzielane między wątki, więc przy N mniejszym niż p × rozmiar partii nie wszystkie wątki mają pracę. Dane dla małych N i dużych p nie pokazują wtedy prawdziwego skalowania; wykresy przyspieszenia używają N = 10⁷.
+- Rozmiar partii: {batch_text} próbek. Partie są rozdzielane między wątki, więc przy N mniejszym niż p × rozmiar partii nie wszystkie wątki mają pracę. Dane dla małych N i dużych p nie pokazują wtedy prawdziwego skalowania; wykresy przyspieszenia używają największego N z siatki (N = {LARGEST_N_LABEL}).
 - Ziarna: {seed_count} na konfigurację. Przed każdą konfiguracją jedno uruchomienie rozgrzewkowe, którego wynik nie trafia do danych.
 - Czas rdzenia: pętla próbkowania w C (losowanie, f(x), sumy partii). Czas pełny: całe uruchomienie programu mierzone w Pythonie.
 - Punkt na wykresie to mediana z {seed_count} ziaren. Słupki błędów to rozstęp międzykwartylowy: od kwartyla 1 (Q1) do kwartyla 3 (Q3).
@@ -471,7 +579,7 @@ Konfiguracja sprzętu: `data/system_info.txt`.
 
 - Pytanie: ile razy szybciej działa program przy p wątkach niż przy jednym.
 - Oś pozioma: liczba wątków p (skala liniowa).
-- Oś pionowa: przyspieszenie S(p) = T(1) / T(p), skala liniowa. T to mediana czasu rdzenia dla N = 10⁷.
+- Oś pionowa: przyspieszenie S(p) = T(1) / T(p), skala liniowa. T to mediana czasu rdzenia dla N = {LARGEST_N_LABEL}.
 - Linie: jedna dla każdej metody. Każda liczona względem własnego T(1), czyli czasu tej samej metody przy p = 1.
 - Linia przerywana: wynik idealny S(p) = p. Jest to jedyna linia pomocnicza.
 - Słupki: zakres Q1-Q3 czasu przeliczony na S.
@@ -512,7 +620,7 @@ Konfiguracja sprzętu: `data/system_info.txt`.
 ### `cost_breakdown_<funkcja>.png`: podział kosztu
 
 - Pytanie: z czego składa się czas działania.
-- Słupki: cztery konfiguracje (metoda i p) dla N = 10⁷. Pod etykietą podano całkowity czas T.
+- Słupki: cztery konfiguracje (metoda i p) dla N = {LARGEST_N_LABEL}. Pod etykietą podano całkowity czas T.
 - Części słupka:
   - RNG: czas samego losowania (tryb `--timing rng`).
   - f(x): różnica czasu pełnego i czasu RNG.
@@ -526,6 +634,10 @@ Konfiguracja sprzętu: `data/system_info.txt`.
 
 
 def main():
+    configure(parse_arguments())
+    print(f"Konfiguracja: p={THREAD_COUNTS}, N={SAMPLE_COUNTS}, ziarna={len(SEEDS)}, "
+          f"dane -> {DATA_DIR}/, wykresy -> {PLOTS_DIR}/, "
+          f"OMP_WAIT_POLICY={OMP_WAIT_POLICY or 'domyślne'}")
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(PLOTS_DIR, exist_ok=True)
 

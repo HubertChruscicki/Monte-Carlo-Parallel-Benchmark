@@ -1,0 +1,4 @@
+src/mc_app
+data_test/
+plots_test/
+__pycache__/
